@@ -118,12 +118,12 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (result.success) {
           await respond({
             response_type: 'ephemeral',
-            text: `:white_check_mark: You've been added to the Leader's Pings group! You'll now receive pings when the Clubs team posts cool announcements. Use \`/leaders leave\` if you want to opt out at any time.`
+            text: `:white_check_mark: you've been added to the Leader's Pings group! you'll now receive pings when the Clubs team posts cool announcements. use \`/leaders leave\` if you want to opt out at any time.`
           });
         } else if (result.reason === 'already_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:information_source: You're already a member of the Leader's Pings group. Use \`/leaders leave\` if you want to opt out! `
+            text: `:information_source: you're already a member of the Leader's Pings group. trying to leave? use \`/leaders leave\` if you want to opt out! `
           });
         }
         break;
@@ -135,17 +135,17 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (result.success) {
           await respond({
             response_type: 'ephemeral',
-            text: `:wave: You've opted out of Leader's Pings! Feel free to join us again anytime with \`/leaders join\`.`
+            text: `:wave: sorry you didn't like our pings... feel free to join us again anytime with \`/leaders join\` though!`
           });
         } else if (result.reason === 'not_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:information_source: You're not a member of the Leader's Pings group. Use \`/leaders join\` to opt in!`
+            text: `:information_source: you're not a member of the Leader's Pings group. use \`/leaders join\` to opt in and join the fun!`
           });
         } else if (result.reason === 'last_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:warning: An error has occured :( - you should dm @lynn!`
+            text: `:warning: an error has occured :( - you should dm @lynn to get this sorted out!`
           });
         }
         break;
@@ -155,7 +155,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (!isAdmin(userId)) {
           await respond({
             response_type: 'ephemeral',
-            text: `:x: The racoons have determined you are not worth to hold such power... Move along kid, nothing to see here.`
+            text: `the racoons have determined you are not worth to hold such power... move along kid, nothing to see here.`
           });
           return;
         }
@@ -166,21 +166,32 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (!targetUserId) {
           await respond({
             response_type: 'ephemeral',
-            text: `:x: Please specify a user to add. Usage: \`/leaders add @user\` or \`/leaders add U12345ABC\``
+            text: `specify a user to add! usage: \`/leaders add @user\` or \`/leaders add U12345ABC\``
           });
           return;
         }
         
         const result = await addUserToGroup(client, targetUserId);
         if (result.success) {
+          // DM the user to let them know they've been added
+          try {
+            const dmChannel = await client.conversations.open({ users: targetUserId });
+            await client.chat.postMessage({
+              channel: dmChannel.channel.id,
+              text: `hey! you've been added to the Leader's Pings group by a Clubs team member. you'll now receive pings when we post cool announcements. use \`/leaders leave\` if you want to opt out at any time!`
+            });
+          } catch (dmError) {
+            console.error('Failed to DM user:', dmError);
+          }
+          
           await respond({
             response_type: 'ephemeral',
-            text: `:white_check_mark: <@${targetUserId}> has been opted into Leader's Pings!`
+            text: `<@${targetUserId}> has been "kidnapped" into Leader's Pings! they've been dmed as well so they know what's up.`
           });
         } else if (result.reason === 'already_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:information_source: <@${targetUserId}> is already a member of the Leader's Pings group.`
+            text: `oop. <@${targetUserId}> seems to already a member of the Leader's Pings group. i don't think i can let you add them to something they're already in...`
           });
         }
         break;
@@ -191,7 +202,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (!isAdmin(userId)) {
           await respond({
             response_type: 'ephemeral',
-            text: `:x: The racoons have determined you are not worth to hold such power... Move along kid, nothing to see here.`
+            text: `the racoons have determined you are not worth to hold such power... move along kid, nothing to see here.`
           });
           return;
         }
@@ -202,26 +213,37 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (!targetUserId) {
           await respond({
             response_type: 'ephemeral',
-            text: `:x: Please specify a user to remove. Usage: \`/leaders remove @user\` or \`/leaders remove U12345ABC\``
+            text: `i can't remove nothing! you have to specify a user to remove, silly! usage: \`/leaders remove @user\` or \`/leaders remove U12345ABC\``
           });
           return;
         }
         
         const result = await removeUserFromGroup(client, targetUserId);
         if (result.success) {
+          // DM the user to let them know they've been removed
+          try {
+            const dmChannel = await client.conversations.open({ users: targetUserId });
+            await client.chat.postMessage({
+              channel: dmChannel.channel.id,
+              text: `hey! you've been removed from the Leader's Pings group by a club's team member. you won't receive pings anymore, but feel free to join back anytime with \`/leaders join\`!`
+            });
+          } catch (dmError) {
+            console.error('Failed to DM user:', dmError);
+          }
+          
           await respond({
             response_type: 'ephemeral',
-            text: `:white_check_mark: <@${targetUserId}> has been removed from the Leader's Pings group.`
+            text: `<@${targetUserId}> has been kicked out from the Leader's Pings group. they've been dmed as well so they know what's up... guess they weren't that into the pings anyway.`
           });
         } else if (result.reason === 'not_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:information_source: <@${targetUserId}> is not a member of the Leader's Pings group.`
+            text: `oop... <@${targetUserId}> is not a member of the Leader's Pings group. guess they don't want those sweet sweet pings after all!`
           });
         } else if (result.reason === 'last_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:warning: Cannot remove - can you try DMing @lynn?`
+            text: `:warning: can't remove - can you try DMing @lynn?`
           });
         }
         break;

@@ -24,6 +24,8 @@ Go to **OAuth & Permissions** and add these **Bot Token Scopes**:
 - `commands` - For slash commands
 - `usergroups:read` - Read user group membership
 - `usergroups:write` - Modify user group membership
+- `chat:write` - Send DM notifications
+- `im:write` - Open DM conversations
 
 ### 3. Enable Socket Mode
 
