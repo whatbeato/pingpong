@@ -178,7 +178,7 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
             const dmChannel = await client.conversations.open({ users: targetUserId });
             await client.chat.postMessage({
               channel: dmChannel.channel.id,
-              text: `hey! you've been added to the Leader's Pings group by a Clubs team member. you'll now receive pings when we post cool announcements. use \`/leaders-ping leave\` if you want to opt out at any time!`
+              text: `hey! you've been added to the Leader's Pings group by a Clubs team member. you'll now receive pings when we post announcements. use \`/leaders-ping leave\` if you want to opt out at any time!`
             });
           } catch (dmError) {
             console.error('Failed to DM user:', dmError);
@@ -225,7 +225,7 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
             const dmChannel = await client.conversations.open({ users: targetUserId });
             await client.chat.postMessage({
               channel: dmChannel.channel.id,
-              text: `hey! you've been removed from the Leader's Pings group by a club's team member. you won't receive pings anymore, but feel free to join back anytime with \`/leaders-ping join\`!`
+              text: `hey! you've been removed from the Leader's Pings group by a Clubs team member. you won't receive pings anymore, but feel free to join back anytime with \`/leaders-ping join\`!`
             });
           } catch (dmError) {
             console.error('Failed to DM user:', dmError);
