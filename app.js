@@ -104,7 +104,7 @@ async function removeUserFromGroup(client, userId) {
 }
 
 // Slash command: /leaders
-app.command('/leaders', async ({ command, ack, respond, client }) => {
+app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
   await ack();
   
   const userId = command.user_id;
@@ -118,12 +118,12 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (result.success) {
           await respond({
             response_type: 'ephemeral',
-            text: `:white_check_mark: you've been added to the Leader's Pings group! you'll now receive pings when the Clubs team posts cool announcements. use \`/leaders leave\` if you want to opt out at any time.`
+            text: `:white_check_mark: you've been added to the Leader's Pings group! you'll now receive pings when the Clubs team posts cool announcements. use \`/leaders-ping leave\` if you want to opt out at any time.`
           });
         } else if (result.reason === 'already_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:information_source: you're already a member of the Leader's Pings group. trying to leave? use \`/leaders leave\` if you want to opt out! `
+            text: `:information_source: you're already a member of the Leader's Pings group. trying to leave? use \`/leaders-ping leave\` if you want to opt out! `
           });
         }
         break;
@@ -135,12 +135,12 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (result.success) {
           await respond({
             response_type: 'ephemeral',
-            text: `:wave: sorry you didn't like our pings... feel free to join us again anytime with \`/leaders join\` though!`
+            text: `:wave: sorry you didn't like our pings... feel free to join us again anytime with \`/leaders-ping join\` though!`
           });
         } else if (result.reason === 'not_member') {
           await respond({
             response_type: 'ephemeral',
-            text: `:information_source: you're not a member of the Leader's Pings group. use \`/leaders join\` to opt in and join the fun!`
+            text: `:information_source: you're not a member of the Leader's Pings group. use \`/leaders-ping join\` to opt in and join the fun!`
           });
         } else if (result.reason === 'last_member') {
           await respond({
@@ -166,7 +166,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (!targetUserId) {
           await respond({
             response_type: 'ephemeral',
-            text: `specify a user to add! usage: \`/leaders add @user\` or \`/leaders add U12345ABC\``
+            text: `specify a user to add! usage: \`/leaders-ping add @user\` or \`/leaders-ping add U12345ABC\``
           });
           return;
         }
@@ -178,7 +178,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
             const dmChannel = await client.conversations.open({ users: targetUserId });
             await client.chat.postMessage({
               channel: dmChannel.channel.id,
-              text: `hey! you've been added to the Leader's Pings group by a Clubs team member. you'll now receive pings when we post cool announcements. use \`/leaders leave\` if you want to opt out at any time!`
+              text: `hey! you've been added to the Leader's Pings group by a Clubs team member. you'll now receive pings when we post cool announcements. use \`/leaders-ping leave\` if you want to opt out at any time!`
             });
           } catch (dmError) {
             console.error('Failed to DM user:', dmError);
@@ -213,7 +213,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         if (!targetUserId) {
           await respond({
             response_type: 'ephemeral',
-            text: `i can't remove nothing! you have to specify a user to remove, silly! usage: \`/leaders remove @user\` or \`/leaders remove U12345ABC\``
+            text: `i can't remove nothing! you have to specify a user to remove, silly! usage: \`/leaders-ping remove @user\` or \`/leaders-ping remove U12345ABC\``
           });
           return;
         }
@@ -225,7 +225,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
             const dmChannel = await client.conversations.open({ users: targetUserId });
             await client.chat.postMessage({
               channel: dmChannel.channel.id,
-              text: `hey! you've been removed from the Leader's Pings group by a club's team member. you won't receive pings anymore, but feel free to join back anytime with \`/leaders join\`!`
+              text: `hey! you've been removed from the Leader's Pings group by a club's team member. you won't receive pings anymore, but feel free to join back anytime with \`/leaders-ping join\`!`
             });
           } catch (dmError) {
             console.error('Failed to DM user:', dmError);
@@ -254,16 +254,16 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
         const helpLines = [
           '*that\'s an invalid command... here\'s the available ones:*',
           '',
-          '`/leaders join` - Add yourself to @leaders-ping',
-          '`/leaders leave` - Remove yourself from @leaders-ping',
+          '`/leaders-ping join` - Add yourself to @leaders-ping',
+          '`/leaders-ping leave` - Remove yourself from @leaders-ping',
         ];
         
         if (isAdmin(userId)) {
           helpLines.push(
             '',
             '*Admin Commands:*',
-            '`/leaders add @user/U12345ABC` - Add someone else to the group',
-            '`/leaders remove @user` - Remove someone from the group',
+            '`/leaders-ping add @user/U12345ABC` - Add someone else to the group',
+            '`/leaders-ping remove @user` - Remove someone from the group',
           );
         }
         
@@ -277,7 +277,7 @@ app.command('/leaders', async ({ command, ack, respond, client }) => {
       }
     }
   } catch (error) {
-    console.error('Error handling /leaders command:', error);
+    console.error('Error handling /leaders-ping command:', error);
     await respond({
       response_type: 'ephemeral',
       text: `:x: An error occurred: ${error.message}`

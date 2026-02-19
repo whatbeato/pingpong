@@ -39,7 +39,7 @@ Go to **OAuth & Permissions** and add these **Bot Token Scopes**:
 1. Go to **Slash Commands**
 2. Click **Create New Command**
 3. Configure:
-   - Command: `/leaders`
+   - Command: `/leaders-ping`
    - Description: `Manage @leaders-ping membership`
    - Usage Hint: `[join|leave|add @user|remove @user|help]`
 
@@ -93,12 +93,12 @@ npm start
 
 | Command | Description |
 |---------|-------------|
-| `/leaders join` | Add yourself to @leaders-ping |
-| `/leaders leave` | Remove yourself from @leaders-ping |
-| `/leaders help` | Show all commands |
-| `/leaders add @user` | (Admin) Add someone by mention |
-| `/leaders add U12345ABC` | (Admin) Add someone by Slack ID |
-| `/leaders remove @user` | (Admin) Remove someone |
+| `/leaders-ping join` | Add yourself to @leaders-ping |
+| `/leaders-ping leave` | Remove yourself from @leaders-ping |
+| `/leaders-ping help` | Show all commands |
+| `/leaders-ping add @user` | (Admin) Add someone by mention |
+| `/leaders-ping add U12345ABC` | (Admin) Add someone by Slack ID |
+| `/leaders-ping remove @user` | (Admin) Remove someone |
 
 ## Finding Slack User IDs
 
