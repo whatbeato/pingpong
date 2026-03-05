@@ -63,18 +63,47 @@ function extractMultipleUserIds(text) {
   return Array.from(userIds);
 }
 
+// Helper: Validate a user ID (check if user exists and can be added to usergroup)
+async function validateUserId(client, userId) {
+  try {
+    const result = await client.users.info({ user: userId });
+    // Check if user is valid (not deleted, not a bot, not restricted guest)
+    if (result.user && !result.user.deleted && !result.user.is_bot && !result.user.is_restricted && !result.user.is_ultra_restricted) {
+      return { valid: true, userId };
+    }
+    return { valid: false, userId, reason: result.user?.deleted ? 'deactivated' : result.user?.is_bot ? 'bot' : 'guest' };
+  } catch (error) {
+    return { valid: false, userId, reason: 'not_found' };
+  }
+}
+
 // Helper: Add multiple users to the group
 async function addMultipleUsersToGroup(client, userIds) {
   const members = await getUsergroupMembers(client);
   const results = {
     added: [],
     alreadyMembers: [],
-    failed: []
+    failed: [],
+    invalid: []
   };
+  
+  // Validate all users in parallel (batch of 10 to avoid rate limits)
+  const validUserIds = [];
+  for (let i = 0; i < userIds.length; i += 10) {
+    const batch = userIds.slice(i, i + 10);
+    const validations = await Promise.all(batch.map(id => validateUserId(client, id)));
+    for (const v of validations) {
+      if (v.valid) {
+        validUserIds.push(v.userId);
+      } else {
+        results.invalid.push(`${v.userId} (${v.reason})`);
+      }
+    }
+  }
   
   const newMembers = [...members];
   
-  for (const userId of userIds) {
+  for (const userId of validUserIds) {
     if (members.includes(userId)) {
       results.alreadyMembers.push(userId);
     } else {
@@ -275,7 +304,7 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
         
         await respond({
           response_type: 'ephemeral',
-          text: `:hourglass_flowing_sand: processing ${targetUserIds.length} user(s)... please wait!`
+          text: `:hourglass_flowing_sand: validating and processing ${targetUserIds.length} user(s)... this may take a moment!`
         });
         
         const results = await addMultipleUsersToGroup(client, targetUserIds);
@@ -302,6 +331,10 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
         
         if (results.alreadyMembers.length > 0) {
           responseLines.push(`\n*Already members (${results.alreadyMembers.length}):* ${results.alreadyMembers.map(id => `<@${id}>`).join(', ')}`);
+        }
+        
+        if (results.invalid.length > 0) {
+          responseLines.push(`\n*Invalid users (${results.invalid.length}):* ${results.invalid.slice(0, 20).join(', ')}${results.invalid.length > 20 ? ` +${results.invalid.length - 20} more` : ''}`);
         }
         
         if (results.failed.length > 0) {
@@ -406,13 +439,22 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
 
 // Message listener: Detect when @leaders-ping is mentioned
 app.message(async ({ message, client, say }) => {
+  console.log('[DEBUG] Message received:', message.text?.substring(0, 100));
+  
   // Skip bot messages and message edits
-  if (message.subtype || message.bot_id) return;
+  if (message.subtype || message.bot_id) {
+    console.log('[DEBUG] Skipping - subtype:', message.subtype, 'bot_id:', message.bot_id);
+    return;
+  }
   
   // Check if the message mentions the @leaders-ping usergroup
   // Usergroup mentions look like <!subteam^S09M5G46ASW|@leaders-ping> or <!subteam^S09M5G46ASW>
   const usergroupMentionPattern = new RegExp(`<!subteam\\^${USERGROUP_ID}(?:\\|[^>]+)?>`);
-  if (!usergroupMentionPattern.test(message.text)) return;
+  const mentionFound = usergroupMentionPattern.test(message.text);
+  console.log('[DEBUG] Checking for usergroup mention:', mentionFound, '| Pattern:', usergroupMentionPattern);
+  if (!mentionFound) return;
+  
+  console.log('[DEBUG] @leaders-ping mention detected! User:', message.user, 'isAdmin:', isAdmin(message.user));
   
   const userId = message.user;
   const channelId = message.channel;
