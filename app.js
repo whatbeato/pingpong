@@ -286,7 +286,7 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
             const dmChannel = await client.conversations.open({ users: addedUserId });
             await client.chat.postMessage({
               channel: dmChannel.channel.id,
-              text: `hey! you've been added to the Leader's Pings group as part of your leader status. you'll now receive pings when we post announcements regarding your club or ask for some feedback. use \`/leaders-ping leave\` if you want to opt out at any time (we won't get mad, we promise)!`
+              text: `hey! you've been added to the Leader's Pings group as part of your leader status. you'll now receive pings when we post announcements regarding clubs or ask for feedback on a few things! use \`/leaders-ping leave\` if you want to opt out at any time :)`
             });
           } catch (dmError) {
             console.error(`Failed to DM user ${addedUserId}:`, dmError);
