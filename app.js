@@ -67,13 +67,14 @@ function extractMultipleUserIds(text) {
 async function validateUserId(client, userId) {
   try {
     const result = await client.users.info({ user: userId });
-    // Check if user is valid (not deleted, not a bot, not restricted guest)
-    if (result.user && !result.user.deleted && !result.user.is_bot && !result.user.is_restricted && !result.user.is_ultra_restricted) {
+    // Only reject deleted users and bots - guests can still be in usergroups
+    if (result.user && !result.user.deleted && !result.user.is_bot) {
       return { valid: true, userId };
     }
-    return { valid: false, userId, reason: result.user?.deleted ? 'deactivated' : result.user?.is_bot ? 'bot' : 'guest' };
+    return { valid: false, userId, reason: result.user?.deleted ? 'deactivated' : 'bot' };
   } catch (error) {
-    return { valid: false, userId, reason: 'not_found' };
+    console.error(`[DEBUG] Validation failed for ${userId}:`, error.message);
+    return { valid: false, userId, reason: error.data?.error || 'api_error' };
   }
 }
 
@@ -87,10 +88,10 @@ async function addMultipleUsersToGroup(client, userIds) {
     invalid: []
   };
   
-  // Validate all users in parallel (batch of 10 to avoid rate limits)
+  // Validate all users in smaller batches with delay to avoid rate limits
   const validUserIds = [];
-  for (let i = 0; i < userIds.length; i += 10) {
-    const batch = userIds.slice(i, i + 10);
+  for (let i = 0; i < userIds.length; i += 5) {
+    const batch = userIds.slice(i, i + 5);
     const validations = await Promise.all(batch.map(id => validateUserId(client, id)));
     for (const v of validations) {
       if (v.valid) {
@@ -98,6 +99,10 @@ async function addMultipleUsersToGroup(client, userIds) {
       } else {
         results.invalid.push(`${v.userId} (${v.reason})`);
       }
+    }
+    // Small delay between batches to avoid rate limits
+    if (i + 5 < userIds.length) {
+      await new Promise(resolve => setTimeout(resolve, 200));
     }
   }
   
