@@ -44,6 +44,59 @@ function extractUserId(text) {
   return null;
 }
 
+// Helper: Extract multiple user IDs from text (for mass operations)
+function extractMultipleUserIds(text) {
+  const userIds = new Set();
+  
+  // Match all <@U12345|username> or <@U12345> formats
+  const mentionMatches = text.matchAll(/<@([A-Z0-9]+)(?:\|[^>]+)?>/g);
+  for (const match of mentionMatches) {
+    userIds.add(match[1]);
+  }
+  
+  // Match all raw user IDs (starts with U, 9-11 chars)
+  const rawMatches = text.matchAll(/\b(U[A-Z0-9]{8,})/g);
+  for (const match of rawMatches) {
+    userIds.add(match[1]);
+  }
+  
+  return Array.from(userIds);
+}
+
+// Helper: Add multiple users to the group
+async function addMultipleUsersToGroup(client, userIds) {
+  const members = await getUsergroupMembers(client);
+  const results = {
+    added: [],
+    alreadyMembers: [],
+    failed: []
+  };
+  
+  const newMembers = [...members];
+  
+  for (const userId of userIds) {
+    if (members.includes(userId)) {
+      results.alreadyMembers.push(userId);
+    } else {
+      newMembers.push(userId);
+      results.added.push(userId);
+    }
+  }
+  
+  if (results.added.length > 0) {
+    try {
+      await updateUsergroupMembers(client, newMembers);
+    } catch (error) {
+      // If update fails, move all added to failed
+      results.failed = results.added;
+      results.added = [];
+      throw error;
+    }
+  }
+  
+  return results;
+}
+
 // Helper: Get current members of the usergroup
 async function getUsergroupMembers(client) {
   try {
@@ -197,6 +250,71 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
         break;
       }
       
+      case 'mass-add':
+      case 'massadd':
+      case 'bulk-add':
+      case 'bulkadd': {
+        if (!isAdmin(userId)) {
+          await respond({
+            response_type: 'ephemeral',
+            text: `the racoons have determined you are not worth to hold such power... move along kid, nothing to see here.`
+          });
+          return;
+        }
+        
+        const massAddArg = args.slice(1).join(' ');
+        const targetUserIds = extractMultipleUserIds(massAddArg);
+        
+        if (targetUserIds.length === 0) {
+          await respond({
+            response_type: 'ephemeral',
+            text: `no valid user IDs found! usage: \`/leaders-ping mass-add U12345ABC U67890DEF U11111AAA\`\nyou can also paste a list separated by spaces, commas, or newlines.`
+          });
+          return;
+        }
+        
+        await respond({
+          response_type: 'ephemeral',
+          text: `:hourglass_flowing_sand: processing ${targetUserIds.length} user(s)... please wait!`
+        });
+        
+        const results = await addMultipleUsersToGroup(client, targetUserIds);
+        
+        // DM all successfully added users
+        for (const addedUserId of results.added) {
+          try {
+            const dmChannel = await client.conversations.open({ users: addedUserId });
+            await client.chat.postMessage({
+              channel: dmChannel.channel.id,
+              text: `hey! you've been added to the Leader's Pings group as part of your leader status. you'll now receive pings when we post announcements regarding your club or ask for some feedback. use \`/leaders-ping leave\` if you want to opt out at any time (we won't get mad, we promise)!`
+            });
+          } catch (dmError) {
+            console.error(`Failed to DM user ${addedUserId}:`, dmError);
+          }
+        }
+        
+        // Build response message
+        const responseLines = [`:white_check_mark: *Mass-add complete!*`];
+        
+        if (results.added.length > 0) {
+          responseLines.push(`\n*Added (${results.added.length}):* ${results.added.map(id => `<@${id}>`).join(', ')}`);
+        }
+        
+        if (results.alreadyMembers.length > 0) {
+          responseLines.push(`\n*Already members (${results.alreadyMembers.length}):* ${results.alreadyMembers.map(id => `<@${id}>`).join(', ')}`);
+        }
+        
+        if (results.failed.length > 0) {
+          responseLines.push(`\n*Failed (${results.failed.length}):* ${results.failed.map(id => `<@${id}>`).join(', ')}`);
+        }
+        
+        await respond({
+          response_type: 'ephemeral',
+          text: responseLines.join('')
+        });
+        break;
+      }
+      
       case 'remove':
       case 'kick': {
         if (!isAdmin(userId)) {
@@ -264,6 +382,7 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
             '*Admin Commands:*',
             '`/leaders-ping add @user/U12345ABC` - Add someone else to the group',
             '`/leaders-ping remove @user` - Remove someone from the group',
+            '`/leaders-ping mass-add U123 U456 U789` - Add multiple users at once via Slack IDs',
           );
         }
         
@@ -282,6 +401,54 @@ app.command('/leaders-ping', async ({ command, ack, respond, client }) => {
       response_type: 'ephemeral',
       text: `:x: An error occurred: ${error.message}`
     });
+  }
+});
+
+// Message listener: Detect when @leaders-ping is mentioned
+app.message(async ({ message, client, say }) => {
+  // Skip bot messages and message edits
+  if (message.subtype || message.bot_id) return;
+  
+  // Check if the message mentions the @leaders-ping usergroup
+  // Usergroup mentions look like <!subteam^S09M5G46ASW|@leaders-ping> or <!subteam^S09M5G46ASW>
+  const usergroupMentionPattern = new RegExp(`<!subteam\\^${USERGROUP_ID}(?:\\|[^>]+)?>`);
+  if (!usergroupMentionPattern.test(message.text)) return;
+  
+  const userId = message.user;
+  const channelId = message.channel;
+  const messageTs = message.ts;
+  
+  try {
+    if (isAdmin(userId)) {
+      // Admin ping: Send :thread: emoji to main channel (not in thread)
+      const threadEmojiMessage = await client.chat.postMessage({
+        channel: channelId,
+        text: ':thread:',
+      });
+      
+      // Build permalink to the :thread: message
+      const permalinkResponse = await client.chat.getPermalink({
+        channel: channelId,
+        message_ts: threadEmojiMessage.ts,
+      });
+      const threadMessageLink = permalinkResponse.permalink;
+      
+      // Reply in the original message's thread with "Please thread here!" linking to the emoji message
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: messageTs,
+        text: `Please thread <${threadMessageLink}|here>!`,
+      });
+    } else {
+      // Non-admin ping: Reply in thread with warning
+      await client.chat.postMessage({
+        channel: channelId,
+        thread_ts: messageTs,
+        text: `please do not ping leaders! this is exclusive for the clubs team to announce! - *DO NOT REPLY HERE PLEASE!*`,
+      });
+    }
+  } catch (error) {
+    console.error('Error handling @leaders-ping mention:', error);
   }
 });
 

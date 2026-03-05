@@ -4,10 +4,20 @@ A Slack bot that lets users manage their membership in the `@leaders-ping` user 
 
 ## Features
 
+### User Commands
 - **Join**: Users can add themselves to @leaders-ping
 - **Leave**: Users can remove themselves from @leaders-ping
-- **Admin Add**: Designated admins can add others via mention or Slack ID
-- **Admin Remove**: Admins can remove others from the group
+
+### Admin Commands
+- **Add**: Admins can add others via mention or Slack ID
+- **Remove**: Admins can remove others from the group
+- **Mass Add**: Admins can add multiple users at once via Slack IDs
+
+### Automatic Message Handling
+When someone pings `@leaders-ping` in a message:
+
+- **Admin ping**: The bot sends a `:thread:` emoji to the main channel, then replies in the original thread with "Please thread here!" (where "here" links to the :thread: message)
+- **Non-admin ping**: The bot replies in the thread with a warning: "please do not ping leaders! this is exclusive for the clubs team to announce! - **DO NOT REPLY HERE PLEASE!**"
 
 ## Setup
 
@@ -24,8 +34,10 @@ Go to **OAuth & Permissions** and add these **Bot Token Scopes**:
 - `commands` - For slash commands
 - `usergroups:read` - Read user group membership
 - `usergroups:write` - Modify user group membership
-- `chat:write` - Send DM notifications
+- `chat:write` - Send DM notifications and thread replies
 - `im:write` - Open DM conversations
+- `channels:history` - Read messages in public channels (for detecting @leaders-ping mentions)
+- `groups:history` - Read messages in private channels (optional, for private channel support)
 
 ### 3. Enable Socket Mode
 
@@ -41,21 +53,29 @@ Go to **OAuth & Permissions** and add these **Bot Token Scopes**:
 3. Configure:
    - Command: `/leaders-ping`
    - Description: `Manage @leaders-ping membership`
-   - Usage Hint: `[join|leave|add @user|remove @user|help]`
+   - Usage Hint: `[join|leave|add @user|remove @user|mass-add U123...|help]`
 
-### 5. Install the App
+### 5. Subscribe to Events
+
+1. Go to **Event Subscriptions**
+2. Enable Events
+3. Under **Subscribe to bot events**, add:
+   - `message.channels` - Listen for messages in public channels
+   - `message.groups` - Listen for messages in private channels (optional)
+
+### 6. Install the App
 
 1. Go to **Install App**
 2. Click **Install to Workspace**
 3. Authorize the permissions
 4. Copy the **Bot User OAuth Token** (starts with `xoxb-`)
 
-### 6. Get Your Signing Secret
+### 7. Get Your Signing Secret
 
 1. Go to **Basic Information**
 2. Under **App Credentials**, copy the **Signing Secret**
 
-### 7. Configure Environment
+### 8. Configure Environment
 
 ```bash
 cp .env.example .env
@@ -99,6 +119,20 @@ npm start
 | `/leaders-ping add @user` | (Admin) Add someone by mention |
 | `/leaders-ping add U12345ABC` | (Admin) Add someone by Slack ID |
 | `/leaders-ping remove @user` | (Admin) Remove someone |
+| `/leaders-ping mass-add U123 U456 U789` | (Admin) Add multiple users at once |
+
+### Mass-Add Details
+
+The `mass-add` command (also accepts `massadd`, `bulk-add`, `bulkadd`) allows admins to add multiple users in a single operation:
+
+```
+/leaders-ping mass-add U12345ABC U67890DEF U11111AAA
+```
+
+- Accepts Slack IDs separated by spaces, commas, or newlines
+- Also works with @mentions
+- Shows a summary of added users, already-members, and any failures
+- DMs each successfully added user
 
 ## Finding Slack User IDs
 
